@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Time Alarm</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #e9ecef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .dashboard { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 350px; }
+        select, input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        #message { margin-top: 15px; font-weight: bold; color: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <h2>Screen Time Manager</h2>
+        
+        <label>Select Mode:</label>
+        <select id="modeSelect" onchange="updateLogic()">
+            <option value="normal">Normal Lock (Standard Alarm)</option>
+            <option value="child">Child Lock (Max 30 Mins)</option>
+            <option value="none">No Lock (Shut Down)</option>
+        </select>
+
+        <label>Time Limit (minutes):</label>
+        <input type="number" id="minutes" value="60" min="1">
+        
+        <button id="startBtn" onclick="startTimer()">Start Timer</button>
+        <h3 id="countdownDisplay" style="display:none; color: #555;"></h3>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        let countdownInterval;
+        const CHILD_LIMIT_MAX = 30; // Child lock maximum time in minutes
+
+        // This runs every time you change the dropdown
+        function updateLogic() {
+            const mode = document.getElementById("modeSelect").value;
+            const minutesInput = document.getElementById("minutes");
+            const startBtn = document.getElementById("startBtn");
+            const message = document.getElementById("message");
+
+            // Reset messages
+            message.innerText = "";
+            
+            if (mode === "none") {
+                // SHUT DOWN: Disable inputs
+                minutesInput.disabled = true;
+                startBtn.disabled = true;
+                message.innerText = "System shut down. No tracking active.";
+                stopTimer(); // Kill any running timers
+            } 
+            else if (mode === "child") {
+                // CHILD LOCK: Enforce lower time limit
+                minutesInput.disabled = false;
+                startBtn.disabled = false;
+                
+                // If they previously entered a high number, pull it down to the max
+                if (parseFloat(minutesInput.value) > CHILD_LIMIT_MAX) {
+                    minutesInput.value = CHILD_LIMIT_MAX;
+                }
+                message.innerText = `Child mode active: Time limited to ${CHILD_LIMIT_MAX} minutes max.`;
+            } 
+            else {
+                // NORMAL LOCK: No restrictions
+                minutesInput.disabled = false;
+                startBtn.disabled = false;
+            }
+        }
+
+        function startTimer() {
+            const mode = document.getElementById("modeSelect").value;
+            let minutes = parseFloat(document.getElementById("minutes").value);
+            
+            // Double check child lock enforcement right before starting
+            if (mode === "child" && minutes > CHILD_LIMIT_MAX) {
+                minutes = CHILD_LIMIT_MAX;
+                document.getElementById("minutes").value = minutes;
+                alert(`Time reduced to ${CHILD_LIMIT_MAX} minutes due to Child Lock.`);
+            }
+
+            if (isNaN(minutes) || minutes <= 0) {
+                alert("Please enter a valid time.");
+                return;
+            }
+
+            // UI Updates
+            const btn = document.getElementById("startBtn");
+            const display = document.getElementById("countdownDisplay");
+            btn.disabled = true;
+            btn.innerText = "Timer Running...";
+            display.style.display = "block";
+
+            let secondsRemaining = Math.floor(minutes * 60);
+            document.getElementById("modeSelect").disabled = true; // Lock dropdown while running
+
+            // The Timer
+            countdownInterval = setInterval(() => {
+                secondsRemaining--;
+                
+                const mins = Math.floor(secondsRemaining / 60);
+                const secs = secondsRemaining % 60;
+                display.innerText = `${mins}m ${secs}s remaining`;
+
+                if (secondsRemaining <= 0) {
+                    stopTimer();
+                    triggerAlarm();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(countdownInterval);
+            
+            // Reset UI
+            const btn = document.getElementById("startBtn");
+            const display = document.getElementById("countdownDisplay");
+            
+            btn.innerText = "Start Timer";
+            display.style.display = "none";
+            document.getElementById("modeSelect").disabled = false;
+            
+            // Re-check mode to see if button should stay disabled (for 'none' mode)
+            updateLogic(); 
+        }
+
+        function triggerAlarm() {
+            // Normal behavior: Gives alarm on screen
+            alert("⏰ TIME IS UP! ⏰\n\nYou have reached your screen time limit.");
+        }
+
+        // Run once on load to set initial state
+        updateLogic();
+    </script>
+</body>
+</html>
